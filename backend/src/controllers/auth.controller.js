@@ -3,6 +3,8 @@ import tokenBlacklistModel from "../models/blaklist.model.js";
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import axios from 'axios'
+import FormData from 'form-data';
+import candidateModel from "../models/candidate.model.js";
 
 
 async function registerUserController(req,res){
@@ -60,19 +62,19 @@ async function loginUserController(req,res){
 
     const user = await userModel.findOne({email})
     if(!user){
-        res.status(400).json({
+        return res.status(400).json({
             message:"User does not exists"
         })
     }
     const isPassword = await bcrypt.compare(password,user.password)
 
     if(!isPassword){
-        res.status(400).json({
+        return res.status(400).json({
             message:"Invalid email or password"
         })
     }
     if(role !== user.role){
-        res.status(400).json({
+        return res.status(400).json({
             message:"Invalid role selected"
         })
     }
@@ -151,4 +153,73 @@ const handleChat = async (req, res) => {
 };
 
 
-export default {loginUserController ,logoutUserController,getMeController,registerUserController,handleChat}
+
+import fs from 'fs'; // Ensure standard fs or dynamic import is accessible
+
+const processCandidateResume = async (req, res) => {
+    try {
+        const { name, email, appliedRole, jobDescription } = req.body;
+        
+        if (!req.file) {
+            return res.status(400).json({ error: 'Resume PDF file is required.' });
+        }
+
+        // FIX: Since using diskStorage, read the file as a stream or buffer from its saved path
+        const fileStream = fs.createReadStream(req.file.path);
+
+        const formData = new FormData();
+        formData.append('file', fileStream, req.file.filename);
+        formData.append('job_description', jobDescription || '');
+
+        // 2. Forward payload to Python FastAPI microservice
+        // Essential: Standard Node 'form-data' package needs its headers attached explicitly
+        const aiResponse = await axios.post('http://127.0.0.1:8000/api/screen', formData, {
+            headers: {
+                ...formData.getHeaders() // Injects content-type multi-part boundary flags safely
+            }
+        });
+
+        const { score, summary, key_matches, missing_skills } = aiResponse.data;
+
+        // 3. Save structured assessment data to MongoDB
+        const newCandidate = new candidateModel({
+            name,
+            email,
+            appliedRole,
+            score,
+            summary,
+            keyMatches: key_matches || [],
+            missingSkills: missing_skills || []
+        });
+
+        await newCandidate.save();
+
+        // OPTIONAL CLEANUP: Remove the file from the "uploads/" folder after parsing is finished
+        fs.unlink(req.file.path, (err) => {
+            if (err) console.error("⚠️ Failed to clean up temp file:", err.message);
+        });
+
+        return res.status(201).json(newCandidate);
+
+    } catch (error) {
+        // Detailed logging to isolate if Express or FastAPI broke
+        console.error('❌ Screener Pipeline Operational Failure:', error.response?.data || error.message);
+        
+        const fallbackError = error.response?.data?.detail || error.response?.data?.error || 'Failed to process resume screening asset.';
+        return res.status(500).json({ error: fallbackError });
+    }
+};
+
+const getAllCandidates = async (req, res) => {
+    try {
+        // Mongoose query will successfully run once server.js triggers connectToDb()
+        const candidates = await candidateModel.find().sort({ score: -1 }); 
+        return res.status(200).json(candidates);
+    } catch (error) {
+        console.error('❌ Pipeline Fetch Error:', error.message);
+        return res.status(500).json({ error: 'Failed to fetch candidate pipeline records.' });
+    }
+};
+
+
+export default {loginUserController ,logoutUserController,getMeController,registerUserController,handleChat,processCandidateResume,getAllCandidates}

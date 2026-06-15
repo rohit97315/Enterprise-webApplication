@@ -42,10 +42,10 @@ const EmployeeDashboard = () => {
             }
         }
   return (
-    <div className="flex h-screen w-full bg-[#1e1e20] text-gray-200 font-sans overflow-hidden">
+    <div className="flex min-h-screen w-full bg-[#1e1e20] text-gray-200 font-sans overflow-hidden">
   
     
-  <aside className="w-64 bg-[#262629] border-r border-[#323235] flex flex-col justify-between">
+  <aside className="w-64 bg-[#262629] border-r border-[#323235] flex flex-col justify-between min-h-screen">
     
     
     <div>
@@ -174,7 +174,7 @@ const EmployeeDashboard = () => {
     </div>
   </aside>
 
-  <main className="flex-1 flex flex-col overflow-y-auto">
+  <main className="flex-1 flex flex-col overflow-y-auto min-h-screen">
     {renderContent()}
   </main>
 

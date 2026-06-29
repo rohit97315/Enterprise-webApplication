@@ -1,6 +1,10 @@
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema({
+    employeeId: {
+            type: mongoose.Schema.Types.ObjectId,
+            required: true
+        },
     username:{
         type:String,
         required:true,

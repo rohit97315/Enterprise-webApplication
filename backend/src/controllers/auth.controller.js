@@ -7,6 +7,7 @@ import FormData from 'form-data';
 import candidateModel from "../models/candidate.model.js";
 
 
+
 async function registerUserController(req,res){
     try{
     const {username,email,password,role} = req.body
@@ -84,9 +85,15 @@ async function loginUserController(req,res){
         { expiresIn:"1d" }
     )
 
-    res.cookie("token",token)
+    res.cookie("token", token, {
+    httpOnly: true,
+    secure: false,      // localhost
+    sameSite: "lax",
+    maxAge: 24 * 60 * 60 * 1000
+});
     res.status(200).json({
         message:"User loggedIn successfully",
+        token,
         user:{
             id:user._id,
             username:user.username,
@@ -134,15 +141,26 @@ async function getMeController(req,res){
     
 const handleChat = async (req, res) => {
     try {
-        const { message } = req.body;
+        // const { message } = req.body;
+
+
+        const { message, employee_id } = req.body;
 
         if (!message) {
             return res.status(400).json({ error: "Message is required" });
         }
 
+        // const pythonResponse = await axios.post('http://127.0.0.1:8000/api/chat', {
+        //     message: message
+        // });
+
+
         const pythonResponse = await axios.post('http://127.0.0.1:8000/api/chat', {
-            message: message
+            message: message,
+            employee_id: employee_id || ""
         });
+
+
 
       return res.status(200).json({ response: pythonResponse.data.response });
 

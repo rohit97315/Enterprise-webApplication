@@ -19,7 +19,10 @@ const Login = () => {
         email, 
         password,
         role: selectedRole 
-      });
+      },
+    {
+      withCredentials:true
+    });
       
       const { token, user } = response.data;
       localStorage.setItem('token', token);

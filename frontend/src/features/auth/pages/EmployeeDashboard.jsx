@@ -4,8 +4,9 @@ import {ChevronUp} from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardView from './DashboardView';
-import EmployeeLeaveManagementView from './EmployeeLeaveManagementView';
+// import EmployeeLeaveManagementView from './EmployeeLeaveManagementView';
 import HRAssistantView from './HRAssistantView';
+import { EmployeeLeaveView } from './EmployeeLeaveView';
 
 // const DashboardView = () => <div><h2>🏠 Home Dashboard</h2><p>Welcome back!</p></div>;
 // const EmployeesView = () => <div><h2>👤 Employees</h2><p>Manage your employees here.</p></div>;
@@ -32,7 +33,7 @@ const EmployeeDashboard = () => {
         const renderContent = () => {
             switch(activeTab) {
                 case 'dashboard': return <DashboardView />;
-                case 'leave': return <EmployeeLeaveManagementView />;
+                case 'leave': return <EmployeeLeaveView/>;
                 case 'assistant': return <HRAssistantView />;
                 // case 'employees': return <EmployeesView />;
                 // case 'resume': return <ResumeView />;

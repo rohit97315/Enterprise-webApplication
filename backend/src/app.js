@@ -3,6 +3,7 @@ import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import authRouter from './routes/auth.routes.js'
 import leaveRouter from './routes/leave.routes.js'
+import hrAgentRouter from './routes/hr.agent.routes.js'
 
 const app = express()
 
@@ -15,5 +16,7 @@ app.use(cors({
 
 app.use("/api/auth",authRouter)
 app.use("/api/leave", leaveRouter) 
+app.use("/api/hr-agent", hrAgentRouter)    
+
 
 export default app

@@ -124,10 +124,196 @@ async function updateLeaveStatusController(req, res) {
     }
 }
 
+//more mcp tools apis
+// ── Tool: search by employee name ──────────────────────────────────────────
+async function getLeavesByUsernameController(req, res) {
+    try {
+        const { username } = req.query;
+        if (!username) return res.status(400).json({ message: "username query required" });
+
+        const leaves = await leaveModel.find({
+            username: { $regex: username, $options: "i" }
+        }).sort({ createdAt: -1 });
+
+        if (leaves.length === 0)
+            return res.status(404).json({ message: `No leaves found for "${username}"` });
+
+        const summary = {
+            totalLeaves: leaves.length,
+            totalDays:   leaves.reduce((s, l) => s + l.days, 0),
+            byType:      {},
+            byStatus:    { Pending: 0, Approved: 0, Rejected: 0 }
+        };
+        leaves.forEach(l => {
+            summary.byType[l.leaveType] = (summary.byType[l.leaveType] || 0) + 1;
+            summary.byStatus[l.status]++;
+        });
+
+        return res.status(200).json({ leaves, summary });
+    } catch (err) {
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+// ── Tool: rank employees by leave count ────────────────────────────────────
+async function getLeaveRankingController(req, res) {
+    try {
+        const { month, year } = req.query;
+        let matchStage = {};
+
+        if (month && year) {
+            matchStage = {
+                startDate: {
+                    $gte: new Date(year, month - 1, 1),
+                    $lte: new Date(year, month, 0)
+                }
+            };
+        }
+
+        const ranking = await leaveModel.aggregate([
+            { $match: matchStage },
+            {
+                $group: {
+                    _id:          "$username",
+                    email:        { $first: "$email" },
+                    totalLeaves:  { $sum: 1 },
+                    totalDays:    { $sum: "$days" },
+                    sickLeaves:   { $sum: { $cond: [{ $eq: ["$leaveType", "Sick Leave"]   }, 1, 0] } },
+                    annualLeaves: { $sum: { $cond: [{ $eq: ["$leaveType", "Annual Leave"] }, 1, 0] } }
+                }
+            },
+            { $sort: { totalDays: -1 } }
+        ]);
+
+        return res.status(200).json(ranking);
+    } catch (err) {
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+// ── Tool: who is on leave today ────────────────────────────────────────────
+async function getCurrentlyOnLeaveController(req, res) {
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const onLeave = await leaveModel.find({
+            status:    "Approved",
+            startDate: { $lte: today },
+            endDate:   { $gte: today }
+        });
+
+        return res.status(200).json({ count: onLeave.length, employees: onLeave });
+    } catch (err) {
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+// ── Tool: bulk approve / reject for one employee ───────────────────────────
+async function bulkUpdateLeavesByUsernameController(req, res) {
+    try {
+        const { username, status } = req.body;
+        if (!username || !status)
+            return res.status(400).json({ message: "username and status required" });
+
+        const result = await leaveModel.updateMany(
+            { username: { $regex: username, $options: "i" }, status: "Pending" },
+            { $set: { status } }
+        );
+
+        return res.status(200).json({
+            message:       `${result.modifiedCount} leave(s) ${status} for ${username}`,
+            modifiedCount: result.modifiedCount
+        });
+    } catch (err) {
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+// ── Tool: flag high absenteeism ────────────────────────────────────────────
+async function getHighAbsenteeismController(req, res) {
+    try {
+        const threshold = parseInt(req.query.threshold) || 5;
+
+        const flagged = await leaveModel.aggregate([
+            {
+                $group: {
+                    _id:         "$username",
+                    email:       { $first: "$email" },
+                    totalLeaves: { $sum: 1 },
+                    totalDays:   { $sum: "$days" }
+                }
+            },
+            { $match: { totalLeaves: { $gte: threshold } } },
+            { $sort: { totalLeaves: -1 } }
+        ]);
+
+        return res.status(200).json({ threshold, flaggedCount: flagged.length, employees: flagged });
+    } catch (err) {
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+// ── Tool: auto-process leaves by HR rules ─────────────────────────────────
+async function autoProcessLeavesByRuleController(req, res) {
+    try {
+        const { action, leave_type, max_days, min_days, blackout_start, blackout_end } = req.body;
+
+        if (!action || !['Approved', 'Rejected'].includes(action))
+            return res.status(400).json({ message: "action must be 'Approved' or 'Rejected'" });
+
+        let query = { status: "Pending" };
+
+        if (leave_type)   query.leaveType = leave_type;
+        if (max_days)     query.days = { ...query.days, $lte: parseInt(max_days) };
+        if (min_days)     query.days = { ...query.days, $gte: parseInt(min_days) };
+
+        if (blackout_start && blackout_end) {
+            query.startDate = { $lte: new Date(blackout_end) };
+            query.endDate   = { $gte: new Date(blackout_start) };
+        }
+
+        const matching = await leaveModel.find(query);
+
+        if (matching.length === 0)
+            return res.status(200).json({ message: "No pending leaves matched the rule.", processedCount: 0, processed: [] });
+
+        await leaveModel.updateMany(
+            { _id: { $in: matching.map(l => l._id) } },
+            { $set: { status: action } }
+        );
+
+        const processed = matching.map(l => ({
+            username:  l.username,
+            leaveType: l.leaveType,
+            startDate: l.startDate.toISOString().slice(0, 10),
+            endDate:   l.endDate.toISOString().slice(0, 10),
+            days:      l.days,
+            newStatus: action
+        }));
+
+        return res.status(200).json({
+            message:        `${matching.length} leave(s) automatically ${action}`,
+            processedCount: matching.length,
+            processed
+        });
+    } catch (err) {
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+
+
 export default {
     applyLeaveController,
     applyLeaveInternalController,
     getAllLeavesController,
     getMyLeavesController,
-    updateLeaveStatusController
+    updateLeaveStatusController,
+    getLeavesByUsernameController,
+    getLeaveRankingController,
+    getCurrentlyOnLeaveController,
+    bulkUpdateLeavesByUsernameController,
+    getHighAbsenteeismController,
+    autoProcessLeavesByRuleController
 };

@@ -21,4 +21,14 @@ leaveRouter.get("/all", authUser, authorizeRoles("HR_Manager", "Admin"), leaveCo
 // HR approves or rejects
 leaveRouter.patch("/:id/status", authUser, authorizeRoles("HR_Manager", "Admin"), leaveController.updateLeaveStatusController);
 
+
+
+
+leaveRouter.get("/search",           leaveController.getLeavesByUsernameController);
+leaveRouter.get("/ranking",          leaveController.getLeaveRankingController);
+leaveRouter.get("/on-leave-today",   leaveController.getCurrentlyOnLeaveController);
+leaveRouter.post("/bulk-update",     leaveController.bulkUpdateLeavesByUsernameController);
+leaveRouter.get("/high-absenteeism", leaveController.getHighAbsenteeismController);
+leaveRouter.post("/auto-process",    leaveController.autoProcessLeavesByRuleController);
+
 export default leaveRouter;

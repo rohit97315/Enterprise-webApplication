@@ -9,20 +9,26 @@ from dotenv import load_dotenv
 # LangChain Core & Community Imports
 from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_community.vectorstores import Chroma
+# from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_mistralai import ChatMistralAI
 import pydantic_core
 import httpx
 from langchain.tools import tool
 from langchain_core.tools import BaseTool
+import datetime
 
+from mistralai.client import Mistral
 # from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
 
 
+
+# import datetime
+# from mistralai import Mistral
 # Load Environment Variables (Ensure MISTRAL_API_KEY is present)
 load_dotenv()
 
@@ -483,6 +489,416 @@ async def screen_resume(file: UploadFile = File(...), job_description: str = For
     except Exception as e:
         print(f"Error handling Screener request: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
+
+
+
+
+
+
+# ==========================================
+# HR INTELLIGENCE AGENT — MISTRAL TOOL CALLING
+# ==========================================
+
+
+
+# Reuses your existing MISTRAL_API_KEY from .env (os and load_dotenv already called above)
+mistral_client = Mistral(api_key=os.getenv("MISTRAL_API_KEY"))
+
+# httpx is already imported at the top of your main.py
+NODE = "http://localhost:3000/api/leave"
+
+
+# ── Tool functions ─────────────────────────────────────────────────────────
+
+def search_employee_leaves(employee_name: str) -> str:
+    try:
+        r = httpx.get(f"{NODE}/search", params={"username": employee_name}, timeout=10)
+        if r.status_code == 404:
+            return f"No leave records found for '{employee_name}'."
+        data   = r.json()
+        leaves = data["leaves"]
+        summary = data["summary"]
+        out  = f"Leave history for '{employee_name}':\n"
+        out += f"Total: {summary['totalLeaves']} requests, {summary['totalDays']} days\n"
+        out += f"By type: {summary['byType']}\nBy status: {summary['byStatus']}\n\nRecent records:\n"
+        for l in leaves[:10]:
+            reason = f" | {l['reason']}" if l.get("reason") else ""
+            out += f"  - {l['leaveType']} | {l['startDate'][:10]} to {l['endDate'][:10]} ({l['days']} days) | {l['status']}{reason}\n"
+        return out
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+def get_leave_ranking(month: int = 0, year: int = 0) -> str:
+    try:
+        params  = {"month": month, "year": year} if month and year else {}
+        r       = httpx.get(f"{NODE}/ranking", params=params, timeout=10)
+        ranking = r.json()
+        if not ranking:
+            return "No leave records found."
+        period = f"for {month}/{year}" if month and year else "(all time)"
+        out = f"Leave ranking {period}:\n"
+        for i, emp in enumerate(ranking, 1):
+            out += (f"  {i}. {emp['_id']} — {emp['totalLeaves']} requests, "
+                    f"{emp['totalDays']} days (Sick: {emp['sickLeaves']}, "
+                    f"Annual: {emp['annualLeaves']})\n")
+        return out
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+def get_employees_on_leave_today() -> str:
+    try:
+        r    = httpx.get(f"{NODE}/on-leave-today", timeout=10)
+        data = r.json()
+        if data["count"] == 0:
+            return "No employees are on leave today."
+        today = datetime.date.today().strftime("%B %d, %Y")
+        out   = f"Employees on leave today ({today}): {data['count']}\n"
+        for emp in data["employees"]:
+            out += f"  - {emp['username']} | {emp['leaveType']} | Returns {emp['endDate'][:10]}\n"
+        return out
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+def get_all_pending_leaves() -> str:
+    try:
+        r       = httpx.get(f"{NODE}/all-internal", timeout=10)   # uses your existing /all-internal route
+        pending = [l for l in r.json() if l["status"] == "Pending"]
+        if not pending:
+            return "No pending leave requests. You are caught up."
+        out = f"Pending requests ({len(pending)}):\n"
+        for l in pending:
+            reason = f" | {l['reason']}" if l.get("reason") else ""
+            out += (f"  • {l['username']} | {l['leaveType']} | "
+                    f"{l['startDate'][:10]} to {l['endDate'][:10]} ({l['days']} days){reason}\n")
+        return out
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+def approve_all_leaves_for_employee(employee_name: str) -> str:
+    try:
+        r = httpx.post(f"{NODE}/bulk-update",
+                       json={"username": employee_name, "status": "Approved"}, timeout=10)
+        return r.json().get("message", "Done.")
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+def reject_all_leaves_for_employee(employee_name: str) -> str:
+    try:
+        r = httpx.post(f"{NODE}/bulk-update",
+                       json={"username": employee_name, "status": "Rejected"}, timeout=10)
+        return r.json().get("message", "Done.")
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+def flag_high_absenteeism(threshold: int = 5) -> str:
+    try:
+        r    = httpx.get(f"{NODE}/high-absenteeism", params={"threshold": threshold}, timeout=10)
+        data = r.json()
+        if not data["employees"]:
+            return f"No employees with {threshold}+ leaves. Attendance looks healthy."
+        out = f"Attendance Risk — {threshold}+ leaves:\n"
+        for emp in data["employees"]:
+            out += f"  ⚠ {emp['_id']} | {emp['totalLeaves']} requests | {emp['totalDays']} days\n"
+        out += "\nSuggestion: Schedule check-in meetings with flagged employees."
+        return out
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+def update_specific_leave(employee_name: str, start_date: str, new_status: str) -> str:
+    try:
+        r = httpx.get(f"{NODE}/search", params={"username": employee_name}, timeout=10)
+        if r.status_code != 200:
+            return f"No leaves found for '{employee_name}'."
+        leaves = r.json()["leaves"]
+        target = next(
+            (l for l in leaves if l["startDate"][:10] == start_date and l["status"] == "Pending"),
+            None
+        )
+        if not target:
+            return f"No pending leave found for '{employee_name}' starting {start_date}."
+        upd = httpx.patch(f"{NODE}/{target['_id']}/status",
+                          json={"status": new_status}, timeout=10)
+        if upd.status_code == 200:
+            return (f"Done. {employee_name}'s {target['leaveType']} "
+                    f"({start_date} to {target['endDate'][:10]}) is now {new_status}.")
+        return f"Failed: {upd.json().get('message')}"
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+def auto_process_leaves_by_rule(
+    action: str,
+    leave_type: str = "",
+    max_days: int = 0,
+    min_days: int = 0,
+    blackout_start: str = "",
+    blackout_end: str = ""
+) -> str:
+    try:
+        payload = {"action": action}
+        if leave_type:     payload["leave_type"]     = leave_type
+        if max_days:       payload["max_days"]        = max_days
+        if min_days:       payload["min_days"]        = min_days
+        if blackout_start: payload["blackout_start"]  = blackout_start
+        if blackout_end:   payload["blackout_end"]    = blackout_end
+
+        r    = httpx.post(f"{NODE}/auto-process", json=payload, timeout=15)
+        data = r.json()
+        if data["processedCount"] == 0:
+            return "No pending leaves matched your rule. Nothing changed."
+        out = f"{data['message']}\n\nProcessed:\n"
+        for item in data["processed"]:
+            out += (f"  - {item['username']} | {item['leaveType']} | "
+                    f"{item['startDate']} to {item['endDate']} "
+                    f"({item['days']} days) → {item['newStatus']}\n")
+        return out
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+# ── Tool registry ──────────────────────────────────────────────────────────
+TOOL_FUNCTIONS = {
+    "search_employee_leaves":          search_employee_leaves,
+    "get_leave_ranking":               get_leave_ranking,
+    "get_employees_on_leave_today":    get_employees_on_leave_today,
+    "get_all_pending_leaves":          get_all_pending_leaves,
+    "approve_all_leaves_for_employee": approve_all_leaves_for_employee,
+    "reject_all_leaves_for_employee":  reject_all_leaves_for_employee,
+    "flag_high_absenteeism":           flag_high_absenteeism,
+    "update_specific_leave":           update_specific_leave,
+    "auto_process_leaves_by_rule":     auto_process_leaves_by_rule,
+}
+
+
+# ── Tool definitions (JSON schemas sent to Mistral) ────────────────────────
+HR_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "search_employee_leaves",
+            "description": "Search a specific employee's full leave history by name.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "employee_name": {"type": "string", "description": "Employee username or name (partial match works)"}
+                },
+                "required": ["employee_name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_leave_ranking",
+            "description": "Get all employees ranked by leave days taken. Pass month and year to filter.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "month": {"type": "integer", "description": "Month 1-12, or 0 for all time"},
+                    "year":  {"type": "integer", "description": "Year like 2026, or 0 for all time"}
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_employees_on_leave_today",
+            "description": "Check who is currently on approved leave today.",
+            "parameters": {"type": "object", "properties": {}, "required": []}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_all_pending_leaves",
+            "description": "Get all pending leave requests waiting for HR approval.",
+            "parameters": {"type": "object", "properties": {}, "required": []}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "approve_all_leaves_for_employee",
+            "description": "Approve all pending leaves for one employee in bulk.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "employee_name": {"type": "string"}
+                },
+                "required": ["employee_name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "reject_all_leaves_for_employee",
+            "description": "Reject all pending leaves for one employee in bulk.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "employee_name": {"type": "string"}
+                },
+                "required": ["employee_name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "flag_high_absenteeism",
+            "description": "Find employees who have taken more leaves than a threshold number.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "threshold": {"type": "integer", "description": "Minimum leave count to flag. Default 5."}
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_specific_leave",
+            "description": "Approve or reject one specific leave by employee name and start date.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "employee_name": {"type": "string"},
+                    "start_date":    {"type": "string", "description": "YYYY-MM-DD"},
+                    "new_status":    {"type": "string", "description": "'Approved' or 'Rejected'"}
+                },
+                "required": ["employee_name", "start_date", "new_status"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "auto_process_leaves_by_rule",
+            "description": "Automatically approve or reject multiple pending leaves based on HR rules.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action":         {"type": "string",  "description": "'Approved' or 'Rejected'"},
+                    "leave_type":     {"type": "string",  "description": "Optional: 'Sick Leave', 'Annual Leave', or 'Casual Leave'"},
+                    "max_days":       {"type": "integer", "description": "Only process leaves with days <= this"},
+                    "min_days":       {"type": "integer", "description": "Only process leaves with days >= this"},
+                    "blackout_start": {"type": "string",  "description": "Blackout period start YYYY-MM-DD"},
+                    "blackout_end":   {"type": "string",  "description": "Blackout period end YYYY-MM-DD"}
+                },
+                "required": ["action"]
+            }
+        }
+    }
+]
+
+
+# ── Agent loop ─────────────────────────────────────────────────────────────
+
+def run_hr_agent(message: str) -> str:
+    today = datetime.date.today().strftime("%B %d, %Y")
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                f"You are HRIntel, an intelligent HR assistant for DevGuard company. "
+                f"You help HR Managers manage employee leave data. You have tools to search, "
+                f"analyse, approve, reject, and automate leave processing.\n\n"
+                f"Rules:\n"
+                f"- When HR mentions an employee name, use search_employee_leaves first\n"
+                f"- For approval/rejection, always confirm the action after doing it\n"
+                f"- For auto-processing, summarise what was done and how many leaves were affected\n"
+                f"- Be direct and professional\n"
+                f"- Today is {today}"
+            )
+        },
+        {"role": "user", "content": message}
+    ]
+
+    for _ in range(8):  # max 8 iterations
+        response         = mistral_client.chat.complete(
+            model="mistral-small-latest",
+            messages=messages,
+            tools=HR_TOOLS,
+            tool_choice="auto"
+        )
+        assistant_message = response.choices[0].message
+
+        if assistant_message.tool_calls:
+            messages.append({
+                "role":    "assistant",
+                "content": assistant_message.content or "",
+                "tool_calls": [
+                    {
+                        "id":       tc.id,
+                        "type":     "function",
+                        "function": {
+                            "name":      tc.function.name,
+                            "arguments": tc.function.arguments
+                        }
+                    }
+                    for tc in assistant_message.tool_calls
+                ]
+            })
+
+            for tool_call in assistant_message.tool_calls:
+                tool_name   = tool_call.function.name
+                tool_args   = json.loads(tool_call.function.arguments)
+                print(f"[HR Agent] Calling tool: {tool_name} with args: {tool_args}")
+
+                tool_result = (TOOL_FUNCTIONS[tool_name](**tool_args)
+                               if tool_name in TOOL_FUNCTIONS
+                               else f"Unknown tool: {tool_name}")
+
+                messages.append({
+                    "role":         "tool",
+                    "tool_call_id": tool_call.id,
+                    "name":         tool_name,
+                    "content":      tool_result
+                })
+        else:
+            return assistant_message.content
+
+    return "Agent reached maximum iterations. Please try a simpler request."
+
+
+# ── FastAPI endpoint ───────────────────────────────────────────────────────
+
+class HRAgentRequest(BaseModel):
+    message: str
+    hr_id: str = ""
+
+@app.post("/api/hr-agent")
+async def hr_agent_endpoint(request: HRAgentRequest):
+    try:
+        if not request.message.strip():
+            raise HTTPException(status_code=400, detail="Message cannot be empty")
+        result = run_hr_agent(request.message)
+        return {"response": result}
+    except Exception as e:
+        print(f"HR Agent endpoint error: {str(e)}")
+        raise HTTPException(status_code=500, detail="HR Agent processing failed")
+
+
+
+
+
 
 
 if __name__ == "__main__":

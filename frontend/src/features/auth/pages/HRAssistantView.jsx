@@ -17,11 +17,11 @@ const HRAssistantView = () => {
 
         try {
             // const res = await axios.post('http://localhost:3000/api/auth/chat', { message });
-            const storedUser = JSON.parse(localStorage.getItem('user'));
-            const res = await axios.post('http://localhost:3000/api/auth/chat', {
-                message,
-                employee_id: storedUser?.id || ""
-            });
+            const res = await axios.post(
+    'http://localhost:3000/api/hr-agent/chat',
+    { message },
+    { withCredentials: true }
+);
             
             setChatHistory([...newChatHistory, { sender: 'bot', text: res.data.response }]);
         } catch (error) {

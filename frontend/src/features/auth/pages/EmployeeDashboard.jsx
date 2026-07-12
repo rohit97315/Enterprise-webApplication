@@ -5,8 +5,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardView from './DashboardView';
 // import EmployeeLeaveManagementView from './EmployeeLeaveManagementView';
-import HRAssistantView from './HRAssistantView';
+// import HRAssistantView from './HRAssistantView';
 import { EmployeeLeaveView } from './EmployeeLeaveView';
+import EmployeeAssistantView from './EmployeeAssistantView';
 
 // const DashboardView = () => <div><h2>🏠 Home Dashboard</h2><p>Welcome back!</p></div>;
 // const EmployeesView = () => <div><h2>👤 Employees</h2><p>Manage your employees here.</p></div>;
@@ -34,7 +35,7 @@ const EmployeeDashboard = () => {
             switch(activeTab) {
                 case 'dashboard': return <DashboardView />;
                 case 'leave': return <EmployeeLeaveView/>;
-                case 'assistant': return <HRAssistantView />;
+                case 'assistant': return <EmployeeAssistantView />;
                 // case 'employees': return <EmployeesView />;
                 // case 'resume': return <ResumeView />;
                 // case 'candidates': return <CandidatesView />;

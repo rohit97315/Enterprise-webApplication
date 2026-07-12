@@ -18,6 +18,14 @@ async function registerUserController(req,res){
         })
     }
 
+    const allowedRoles = ['Admin', 'HR_Manager', 'Employee'];
+     if (role && !allowedRoles.includes(role)) {
+         return res.status(400).json({
+             message: `Invalid role. Must be one of: ${allowedRoles.join(', ')}`
+         });
+     }
+
+
     const isAlreadyRegistered = await userModel.findOne({
         $or:[{username},{email}]
     })
@@ -30,7 +38,7 @@ async function registerUserController(req,res){
 
     const hash = await bcrypt.hash(password,10)
 
-    const user = userModel.create({
+    const user = await userModel.create({
         username,
         email,
         password:hash,
@@ -87,7 +95,8 @@ async function loginUserController(req,res){
 
     res.cookie("token", token, {
     httpOnly: true,
-    secure: false,      // localhost
+    // secure: false,      // localhost
+    secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     maxAge: 24 * 60 * 60 * 1000
 });
@@ -125,6 +134,7 @@ async function logoutUserController(req,res){
 
 
 async function getMeController(req,res){
+    try{
             const user = await userModel.findById(req.user.id)
 
 
@@ -137,6 +147,10 @@ async function getMeController(req,res){
                     role:user.role
                 }
             })
+            } catch (err) {
+         console.error("getMe error:", err.message);
+         res.status(500).json({ message: "Internal server error" });
+     }
 }
     
 const handleChat = async (req, res) => {

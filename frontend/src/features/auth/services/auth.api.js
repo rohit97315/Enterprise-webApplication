@@ -67,3 +67,21 @@ export async function getMe() {
     }
 
 }
+
+
+
+export async function sendEmployeeChatMessage(message) {
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    const employee_id = storedUser?.id || "";
+
+    try {
+        const response = await api.post('/api/auth/chat', {
+            message,
+            employee_id
+        });
+        return response.data;
+    } catch (err) {
+        console.log(err);
+        throw err;
+    }
+}

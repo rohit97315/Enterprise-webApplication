@@ -55,3 +55,10 @@ export const verifyToken = (req, res, next) => {
   }
 };
 
+export const verifyInternalKey = (req, res, next) => {
+    const key = req.headers['x-internal-key'];
+    if (!key || key !== process.env.INTERNAL_API_KEY) {
+        return res.status(403).json({ message: "Forbidden: internal access only" });
+    }
+    next();
+};

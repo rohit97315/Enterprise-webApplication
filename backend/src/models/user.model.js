@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const userSchema = new mongoose.Schema({
     employeeId: {
             type: mongoose.Schema.Types.ObjectId,
-            required: true
+            required: false
         },
     username:{
         type:String,
@@ -22,10 +22,17 @@ const userSchema = new mongoose.Schema({
     role:{
         type:String,
         required:true,
-        emun:['Admin','HR_Manager','Employee'],
+        enum:['Admin','HR_Manager','Employee'],
         default:'Employee'
     }
 },{timestamps:true})
+
+userSchema.pre('save', function (next) {
+     if (!this.employeeId) {
+         this.employeeId = this._id;
+     }
+     next();
+ });
 
 const userModel = mongoose.model("user",userSchema)
 

@@ -57,7 +57,7 @@ app = FastAPI(title="AI HR Assistant & Resume Screener Service")
 # Unified CORS Middleware Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -123,6 +123,32 @@ Question:
         )
     ]
 )
+
+
+
+
+# ==========================================
+# SHARED: Handbook / Policy RAG lookup
+# ==========================================
+
+def answer_policy_question(question: str) -> str:
+    """Core retrieval-augmented lookup against the employee handbook vectorstore.
+    Used by both the employee agent and the HR agent as a shared tool."""
+    docs = retriever.invoke(question)
+    context = "\n\n".join([doc.page_content for doc in docs])
+
+    if not context.strip():
+        return "I could not find relevant information in the HR documents."
+
+    prompt = rag_prompt_template.invoke({
+        "context": context,
+        "question": question
+    })
+
+    response = llm_rag.invoke(prompt)
+    return response.content
+
+
 
 # --- Resume Screener Prompt ---
 SCREENER_PROMPT_TEMPLATE = """
@@ -190,6 +216,7 @@ def apply_leave_tool(employee_id: str, leave_type: str, start_date: str, end_dat
                 "endDate": end_date,
                 "reason": reason
             },
+            headers={"X-Internal-Key": os.getenv("INTERNAL_API_KEY")},
             timeout=10.0
         )
         
@@ -277,6 +304,7 @@ def check_leave_status_tool(employee_id: str) -> str:
         # 1. Hit the Node backend route (Make sure port matches where your Node server runs)
         response = httpx.get(
             f"http://localhost:3000/api/leave/all-internal",
+            headers={"X-Internal-Key": os.getenv("INTERNAL_API_KEY")},
             timeout=10.0
         )
         
@@ -324,10 +352,19 @@ def check_leave_status_tool(employee_id: str) -> str:
     except Exception as e:
         return f"Error checking leaves: {str(e)}"
 
+@tool
+def policy_qa_tool(question: str) -> str:
+    """Use this tool when the employee asks about HR policies, company rules,
+    leave policy details, salary, holidays, benefits, or anything that would
+    be found in the employee handbook.
 
+    Parameter:
+    - question: the employee's question, as a string
+    """
+    return answer_policy_question(question)
 
 # List of all tools the agent can use
-agent_tools = [ apply_leave_tool, check_leave_status_tool]
+agent_tools = [ apply_leave_tool, check_leave_status_tool, policy_qa_tool]
 
 # Agent prompt — this tells the LLM how to behave
 agent_system_prompt = """You are HRBot, a helpful HR AI assistant for DevGuard company.
@@ -335,12 +372,14 @@ agent_system_prompt = """You are HRBot, a helpful HR AI assistant for DevGuard c
 You have access to the following tools:
 1. apply_leave_tool — applies for leave on behalf of the employee
 2. check_leave_status_tool — checks the employee's leave history and status
+3. policy_qa_tool — answers questions about HR policies, benefits, and the employee handbook
 
 Important rules:
 - When the employee wants to apply for leave, ALWAYS use the apply_leave_tool
 - The employee_id will be provided to you in the context — use it for leave operations
 - For leave type, map naturally: "sick leave" → "Sick Leave", "annual" → "Annual Leave", "casual" → "Casual Leave"
 - For dates, always convert to YYYY-MM-DD format
+- When the employee asks about policy, rules, benefits, or anything from the handbook, use policy_qa_tool
 - Be friendly and confirm what you've done after applying leave
 
 Current employee_id: {employee_id}
@@ -516,7 +555,7 @@ NODE = "http://localhost:3000/api/leave"
 
 def search_employee_leaves(employee_name: str) -> str:
     try:
-        r = httpx.get(f"{NODE}/search", params={"username": employee_name}, timeout=10)
+        r = httpx.get(f"{NODE}/search", params={"username": employee_name},headers={"X-Internal-Key": os.getenv("INTERNAL_API_KEY")}, timeout=10)
         if r.status_code == 404:
             return f"No leave records found for '{employee_name}'."
         data   = r.json()
@@ -536,7 +575,7 @@ def search_employee_leaves(employee_name: str) -> str:
 def get_leave_ranking(month: int = 0, year: int = 0) -> str:
     try:
         params  = {"month": month, "year": year} if month and year else {}
-        r       = httpx.get(f"{NODE}/ranking", params=params, timeout=10)
+        r       = httpx.get(f"{NODE}/ranking", params=params,headers={"X-Internal-Key": os.getenv("INTERNAL_API_KEY")}, timeout=10)
         ranking = r.json()
         if not ranking:
             return "No leave records found."
@@ -553,7 +592,7 @@ def get_leave_ranking(month: int = 0, year: int = 0) -> str:
 
 def get_employees_on_leave_today() -> str:
     try:
-        r    = httpx.get(f"{NODE}/on-leave-today", timeout=10)
+        r    = httpx.get(f"{NODE}/on-leave-today",headers={"X-Internal-Key": os.getenv("INTERNAL_API_KEY")}, timeout=10)
         data = r.json()
         if data["count"] == 0:
             return "No employees are on leave today."
@@ -568,7 +607,7 @@ def get_employees_on_leave_today() -> str:
 
 def get_all_pending_leaves() -> str:
     try:
-        r       = httpx.get(f"{NODE}/all-internal", timeout=10)   # uses your existing /all-internal route
+        r       = httpx.get(f"{NODE}/all-internal", headers={"X-Internal-Key": os.getenv("INTERNAL_API_KEY")},timeout=10)   # uses your existing /all-internal route
         pending = [l for l in r.json() if l["status"] == "Pending"]
         if not pending:
             return "No pending leave requests. You are caught up."
@@ -585,7 +624,7 @@ def get_all_pending_leaves() -> str:
 def approve_all_leaves_for_employee(employee_name: str) -> str:
     try:
         r = httpx.post(f"{NODE}/bulk-update",
-                       json={"username": employee_name, "status": "Approved"}, timeout=10)
+                       json={"username": employee_name, "status": "Approved"},headers={"X-Internal-Key": os.getenv("INTERNAL_API_KEY")}, timeout=10)
         return r.json().get("message", "Done.")
     except Exception as e:
         return f"Error: {str(e)}"
@@ -594,7 +633,7 @@ def approve_all_leaves_for_employee(employee_name: str) -> str:
 def reject_all_leaves_for_employee(employee_name: str) -> str:
     try:
         r = httpx.post(f"{NODE}/bulk-update",
-                       json={"username": employee_name, "status": "Rejected"}, timeout=10)
+                       json={"username": employee_name, "status": "Rejected"}, headers={"X-Internal-Key": os.getenv("INTERNAL_API_KEY")},timeout=10)
         return r.json().get("message", "Done.")
     except Exception as e:
         return f"Error: {str(e)}"
@@ -602,7 +641,7 @@ def reject_all_leaves_for_employee(employee_name: str) -> str:
 
 def flag_high_absenteeism(threshold: int = 5) -> str:
     try:
-        r    = httpx.get(f"{NODE}/high-absenteeism", params={"threshold": threshold}, timeout=10)
+        r    = httpx.get(f"{NODE}/high-absenteeism", params={"threshold": threshold},headers={"X-Internal-Key": os.getenv("INTERNAL_API_KEY")}, timeout=10)
         data = r.json()
         if not data["employees"]:
             return f"No employees with {threshold}+ leaves. Attendance looks healthy."
@@ -617,7 +656,7 @@ def flag_high_absenteeism(threshold: int = 5) -> str:
 
 def update_specific_leave(employee_name: str, start_date: str, new_status: str) -> str:
     try:
-        r = httpx.get(f"{NODE}/search", params={"username": employee_name}, timeout=10)
+        r = httpx.get(f"{NODE}/search", params={"username": employee_name},headers={"X-Internal-Key": os.getenv("INTERNAL_API_KEY")}, timeout=10)
         if r.status_code != 200:
             return f"No leaves found for '{employee_name}'."
         leaves = r.json()["leaves"]
@@ -653,7 +692,7 @@ def auto_process_leaves_by_rule(
         if blackout_start: payload["blackout_start"]  = blackout_start
         if blackout_end:   payload["blackout_end"]    = blackout_end
 
-        r    = httpx.post(f"{NODE}/auto-process", json=payload, timeout=15)
+        r    = httpx.post(f"{NODE}/auto-process", json=payload,headers={"X-Internal-Key": os.getenv("INTERNAL_API_KEY")}, timeout=15)
         data = r.json()
         if data["processedCount"] == 0:
             return "No pending leaves matched your rule. Nothing changed."
@@ -678,6 +717,7 @@ TOOL_FUNCTIONS = {
     "flag_high_absenteeism":           flag_high_absenteeism,
     "update_specific_leave":           update_specific_leave,
     "auto_process_leaves_by_rule":     auto_process_leaves_by_rule,
+    "answer_policy_question":          answer_policy_question,
 }
 
 
@@ -697,6 +737,20 @@ HR_TOOLS = [
             }
         }
     },
+    {
+         "type": "function",
+         "function": {
+             "name": "answer_policy_question",
+             "description": "Answer questions about HR policies, company rules, or anything in the employee handbook, using the handbook document store.",
+             "parameters": {
+                 "type": "object",
+                 "properties": {
+                     "question": {"type": "string", "description": "The policy/handbook question to look up"}
+                 },
+                 "required": ["question"]
+             }
+         }
+     },
     {
         "type": "function",
         "function": {
@@ -819,9 +873,11 @@ def run_hr_agent(message: str) -> str:
             "content": (
                 f"You are HRIntel, an intelligent HR assistant for DevGuard company. "
                 f"You help HR Managers manage employee leave data. You have tools to search, "
-                f"analyse, approve, reject, and automate leave processing.\n\n"
+                f"analyse, approve, reject, and automate leave processing. You can also answer "
+                f"HR policy/handbook questions using answer_policy_question.\n\n"
                 f"Rules:\n"
                 f"- When HR mentions an employee name, use search_employee_leaves first\n"
+                f"- When HR asks a policy or handbook question, use answer_policy_question\n"
                 f"- For approval/rejection, always confirm the action after doing it\n"
                 f"- For auto-processing, summarise what was done and how many leaves were affected\n"
                 f"- Be direct and professional\n"

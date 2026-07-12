@@ -1,6 +1,6 @@
 import { Router } from "express";
 import authController from "../controllers/auth.controller.js";
-import {authUser} from "../middlewares/auth.middleware.js";
+import {authUser,verifyInternalKey,authorizeRoles} from "../middlewares/auth.middleware.js";
 import express from 'express';
 import multer from 'multer';
 import axios from 'axios';
@@ -16,7 +16,18 @@ const storage = multer.diskStorage({
  }
 });
 
-const upload = multer({storage});
+// const upload = multer({storage});
+
+const upload = multer({
+     storage,
+     limits: { fileSize: 10 * 1024 * 1024 }, // 5MB max
+     fileFilter: (req, file, cb) => {
+         if (file.mimetype !== 'application/pdf') {
+             return cb(new Error('Only PDF files are allowed'));
+         }
+         cb(null, true);
+     }
+  });
 
 authRouter.post("/register",authController.registerUserController)
 
@@ -32,9 +43,9 @@ authRouter.get("/get-me", authUser,authController.getMeController)
 authRouter.post("/chat", authController.handleChat)
 
 
-authRouter.post('/process', upload.single('resume'), authController.processCandidateResume);
-authRouter.get('/candidates', authController.getAllCandidates);
-
+authRouter.post('/process', verifyInternalKey,upload.single('resume'), authController.processCandidateResume);
+// authRouter.get('/candidates', authController.getAllCandidates);
+authRouter.get('/candidates',authUser, authorizeRoles("HR_Manager", "Admin"), authController.getAllCandidates);
 
 
 export default authRouter

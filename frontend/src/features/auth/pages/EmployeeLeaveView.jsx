@@ -1,7 +1,7 @@
 
 import  { useState, useEffect } from 'react';
 import axios from 'axios'; // 1. Import axios
-
+import EmployeeLeaveManagementView from './EmployeeLeaveManagementView';
 
 export const EmployeeLeaveView = () => {
 
@@ -9,28 +9,45 @@ export const EmployeeLeaveView = () => {
 const[requests,setRequests]=useState([])
 const [loading, setLoading] = useState(true);
 const [error, setError] = useState(null); // Added state to handle errors gracefully
+const [showForm, setShowForm] = useState(false);
+console.log(loading ,error);
+
+   const fetchLeaves = () => {
+     axios.get('http://localhost:3000/api/leave/my-leaves', { withCredentials: true })
+       .then(response => { setRequests(response.data); setLoading(false); })
+       .catch(err => {
+         console.error("Error loading users with Axios:", err);
+         setError("Failed to load employee directory.");
+         setLoading(false);
+       });
+   };
+
+
+
+
 useEffect(() => {
 // const token = localStorage.getItem('token');
         
       
   // 2. Use axios.get instead of fetch
-    axios.get('http://localhost:3000/api/leave/my-leaves',{
-      withCredentials:true
-      })
-      .then(response => {
-        // Axios automatically parses the response into JSON and stores it in '.data'
-          console.log(response.data);
+    // axios.get('http://localhost:3000/api/leave/my-leaves',{
+    //   withCredentials:true
+    //   })
+    //   .then(response => {
+    //     // Axios automatically parses the response into JSON and stores it in '.data'
+    //       console.log(response.data);
 
-          setRequests(response.data);
-          setLoading(false);
-      })
-      .catch(err => {
-          console.error("Error loading users with Axios:", err);
-          setError("Failed to load employee directory.");
-          setLoading(false);
-      });
-    }, []);
-    
+    //       setRequests(response.data);
+    //       setLoading(false);
+    //   })
+    //   .catch(err => {
+    //       console.error("Error loading users with Axios:", err);
+    //       setError("Failed to load employee directory.");
+    //       setLoading(false);
+    //   });
+    // }, []);
+    fetchLeaves();
+   }, []);
 
 
 
@@ -45,7 +62,7 @@ useEffect(() => {
           <h1>Employee Leave Manage</h1>
       </div>
       <div className="p-6 hover:bg-emerald-700 bg-emerald-600 text-white rounded-2xl transform transition-transform duration-150 active:scale-95 ease-in-out">
-          <button>Add New Leave Request</button>
+          <button onClick={() => setShowForm(true)}>Add New Leave Request</button>
       </div>
       </div>
 
@@ -71,8 +88,23 @@ useEffect(() => {
                     </div>
                 ))}
             </div>
+            {showForm && (
+         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+           <div className="bg-zinc-900 border border-zinc-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+             <EmployeeLeaveManagementView
+               onClose={() => setShowForm(false)}
+               onSuccess={() => {
+                 setShowForm(false);
+                 fetchLeaves();       // refresh the list so the new request shows up immediately
+               }}
+             />
+           </div>
+         </div>
+       )}
         </div>
     
+        
+       
 
 
   );

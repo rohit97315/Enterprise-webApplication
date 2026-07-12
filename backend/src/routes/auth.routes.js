@@ -43,7 +43,7 @@ authRouter.get("/get-me", authUser,authController.getMeController)
 authRouter.post("/chat", authController.handleChat)
 
 
-authRouter.post('/process', verifyInternalKey,upload.single('resume'), authController.processCandidateResume);
+authRouter.post('/process', authUser, authorizeRoles("HR_Manager", "Admin"),upload.single('resume'), authController.processCandidateResume);
 // authRouter.get('/candidates', authController.getAllCandidates);
 authRouter.get('/candidates',authUser, authorizeRoles("HR_Manager", "Admin"), authController.getAllCandidates);
 

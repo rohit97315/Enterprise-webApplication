@@ -1,16 +1,18 @@
 import  { useState, useMemo } from 'react';
-import { useDispatch } from 'react-redux'
-import { addRequest } from '../authSlice';
+// import { useDispatch } from 'react-redux'
+// import { addRequest } from '../authSlice';
+import axios from 'axios';
 
 
-export default function EmployeeLeaveManagementView() {
+export default function EmployeeLeaveManagementView({onClose, onSuccess}) {
   const [leaveType, setLeaveType] = useState('');
   const [reason, setReason] = useState('');
   
 
 //USING import { connect } from 'react-redux'
-  const dispatch = useDispatch();
-
+  // const dispatch = useDispatch();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+   const [submitError, setSubmitError] = useState('');
   // const handleSubmit = (e) => {
   //   e.preventDefault();
   //   dispatch(addRequest())
@@ -129,7 +131,7 @@ export default function EmployeeLeaveManagementView() {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit =async (e) => {
     e.preventDefault();
     if (!leaveType || !rangeStart) {
       alert("Please select a leave type and date range.");
@@ -137,19 +139,43 @@ export default function EmployeeLeaveManagementView() {
     }
 
     // Pass form state into your Redux dispatch payload
-    dispatch(addRequest({
-      leaveType,
-      reason,
-      startDate: rangeStart.toISOString(),
-      endDate: rangeEnd ? rangeEnd.toISOString() : rangeStart.toISOString(),
-      days: numberOfDays
-    }));
+    // dispatch(addRequest({
+    //   leaveType,
+    //   reason,
+    //   startDate: rangeStart.toISOString(),
+    //   endDate: rangeEnd ? rangeEnd.toISOString() : rangeStart.toISOString(),
+    //   days: numberOfDays
+    // }));
 
-    setLeaveType("")
-    setReason("")
-    setCurrentDate(new Date(2026, 5, 1))
-    setRangeStart(new Date(2026, 5, 11))
-    setRangeEnd(new Date(2026,5,12))
+    // setLeaveType("")
+    // setReason("")
+    // setCurrentDate(new Date(2026, 5, 1))
+    // setRangeStart(new Date(2026, 5, 11))
+    // setRangeEnd(new Date(2026,5,12))
+    setIsSubmitting(true);
+    setSubmitError('');
+    try {
+      await axios.post(
+        'http://localhost:3000/api/leave/apply',
+        {
+          leaveType,
+          reason,
+          startDate: rangeStart.toISOString(),
+          endDate: rangeEnd ? rangeEnd.toISOString() : rangeStart.toISOString(),
+        },
+        { withCredentials: true }
+      );
+
+      if (onSuccess) onSuccess();   // tell the parent to refresh the list + close the modal
+    } catch (err) {
+      console.error(err);
+      setSubmitError(err.response?.data?.message || "Failed to submit leave request.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  
+
+
   };
 
 
@@ -158,9 +184,17 @@ export default function EmployeeLeaveManagementView() {
     <div className="min-h-screen bg-[#111318] text-[#e2e8f0] p-8 flex justify-center items-start font-sans w-full">
       <div className="w-full max-w-[720px] bg-[#161920] border border-[#222733] rounded-xl p-6 shadow-2xl">
         
-        <h2 className="text-2xl font-semibold text-white mb-6 tracking-wide">
+        {/* <h2 className="text-2xl font-semibold text-white mb-6 tracking-wide">
           Apply for Leave
-        </h2>
+        </h2> */}
+        <div className="flex justify-between items-center mb-4">
+   <h2 className="text-lg font-semibold text-white">Apply for Leave</h2>
+   {onClose && (
+     <button onClick={onClose} type="button" className="text-zinc-400 hover:text-white text-xl leading-none">
+       &times;
+     </button>
+   )}
+ </div>
 
         <form className="space-y-5" onSubmit={handleSubmit}>
           
@@ -272,8 +306,8 @@ export default function EmployeeLeaveManagementView() {
 
           {/* Submission and Action Bar Buttons */}
           <div className="flex items-center gap-3 pt-2">
-            <button type='submit' className="bg-[#1d6fd2] hover:bg-[#1a65c0] text-white font-medium text-sm px-5 py-2.5 rounded-lg transition-all ">
-              Submit Leave Request
+            <button type='submit' disabled={isSubmitting} className="bg-[#1d6fd2] hover:bg-[#1a65c0] disabled:opacity-50 text-white font-medium text-sm px-5 py-2.5 rounded-lg transition-all ">
++     {isSubmitting ? 'Submitting...' : 'Submit Leave Request'}
             </button>
             <button 
               type="button" 
@@ -283,6 +317,7 @@ export default function EmployeeLeaveManagementView() {
               Cancel
             </button>
           </div>
+          {submitError && <p className="text-red-400 text-sm">{submitError}</p>}
         </form>
       </div>
     </div>

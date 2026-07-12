@@ -8,7 +8,8 @@ export const screenNewCandidate = createAsyncThunk(
     async (formData, { rejectWithValue }) => {
         try {
             const response = await axios.post(`${API_BASE_URL}/process`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
+                headers: { 'Content-Type': 'multipart/form-data' },
+                withCredentials:true
             });
             return response.data;
         } catch (error) {
@@ -21,7 +22,7 @@ export const fetchCandidates = createAsyncThunk(
     'screener/fetchCandidates',
     async (_, { rejectWithValue }) => {
         try {
-            const response = await axios.get(`${API_BASE_URL}/candidates`);
+            const response = await axios.get(`${API_BASE_URL}/candidates`, { withCredentials: true });
             return response.data;
         } catch (error) {
             return rejectWithValue(error.response?.data?.error || 'Failed to sync applications');

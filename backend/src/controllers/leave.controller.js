@@ -303,6 +303,99 @@ async function autoProcessLeavesByRuleController(req, res) {
 }
 
 
+//now for dashboard code
+async function getDashboardStatsController(req, res) {
+    try {
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+        const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+
+        const [
+            totalEmployees,
+            roleDistributionRaw,
+            totalLeaveRequests,
+            statusBreakdownRaw,
+            leaveTypeBreakdownRaw,
+            onLeaveToday,
+            monthlyTrendRaw,
+            recentLeaves,
+            topLeaveTakersRaw,
+            recentlyJoined
+        ] = await Promise.all([
+            userModel.countDocuments(),
+
+            userModel.aggregate([
+                { $group: { _id: "$role", count: { $sum: 1 } } }
+            ]),
+
+            leaveModel.countDocuments(),
+
+            leaveModel.aggregate([
+                { $group: { _id: "$status", count: { $sum: 1 } } }
+            ]),
+
+            leaveModel.aggregate([
+                { $group: { _id: "$leaveType", count: { $sum: 1 } } }
+            ]),
+
+            leaveModel.countDocuments({
+                status: "Approved",
+                startDate: { $lte: todayEnd },
+                endDate: { $gte: todayStart }
+            }),
+
+            leaveModel.aggregate([
+                { $match: { createdAt: { $gte: sixMonthsAgo } } },
+                {
+                    $group: {
+                        _id: { year: { $year: "$createdAt" }, month: { $month: "$createdAt" } },
+                        count: { $sum: 1 }
+                    }
+                },
+                { $sort: { "_id.year": 1, "_id.month": 1 } }
+            ]),
+
+            leaveModel.find().sort({ createdAt: -1 }).limit(5)
+                .select("username leaveType status days createdAt"),
+
+            leaveModel.aggregate([
+                { $group: { _id: "$username", totalDays: { $sum: "$days" } } },
+                { $sort: { totalDays: -1 } },
+                { $limit: 5 }
+            ]),
+
+            userModel.find().sort({ createdAt: -1 }).limit(5)
+                .select("username role createdAt")
+        ]);
+
+        const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        const monthlyTrend = monthlyTrendRaw.map(m => ({
+            month: monthNames[m._id.month - 1],
+            requests: m.count
+        }));
+
+        res.status(200).json({
+            totalEmployees,
+            roleDistribution: roleDistributionRaw.map(r => ({ name: r._id, value: r.count })),
+            totalLeaveRequests,
+            statusBreakdown: statusBreakdownRaw.map(s => ({ name: s._id, value: s.count })),
+            leaveTypeBreakdown: leaveTypeBreakdownRaw.map(t => ({ name: t._id, value: t.count })),
+            onLeaveToday,
+            monthlyTrend,
+            recentLeaves,
+            topLeaveTakers: topLeaveTakersRaw.map(t => ({ username: t._id, days: t.totalDays })),
+            recentlyJoined
+        });
+    } catch (err) {
+        console.error("Dashboard stats error:", err.message);
+        res.status(500).json({ message: "Failed to load dashboard statistics" });
+    }
+}
+
+
+
+
 
 export default {
     applyLeaveController,
@@ -315,5 +408,6 @@ export default {
     getCurrentlyOnLeaveController,
     bulkUpdateLeavesByUsernameController,
     getHighAbsenteeismController,
-    autoProcessLeavesByRuleController
+    autoProcessLeavesByRuleController,
+    getDashboardStatsController
 };

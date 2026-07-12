@@ -12,6 +12,11 @@ leaveRouter.post("/apply-internal",verifyInternalKey, leaveController.applyLeave
 
 leaveRouter.get("/all-internal", verifyInternalKey,leaveController.getAllLeavesController);
 
+
+
+// Real-data dashboard analytics — HR/Admin only
+ leaveRouter.get("/dashboard-stats", authUser, authorizeRoles("HR_Manager", "Admin"), leaveController.getDashboardStatsController);
+
 // Employee sees their own leave history
 leaveRouter.get("/my-leaves", authUser, leaveController.getMyLeavesController);
 

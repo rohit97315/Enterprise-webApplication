@@ -8,6 +8,7 @@ import DashboardView from './DashboardView';
 // import HRAssistantView from './HRAssistantView';
 import { EmployeeLeaveView } from './EmployeeLeaveView';
 import EmployeeAssistantView from './EmployeeAssistantView';
+import EmployeeHomeView from './EmployeeHomeView';
 
 // const DashboardView = () => <div><h2>🏠 Home Dashboard</h2><p>Welcome back!</p></div>;
 // const EmployeesView = () => <div><h2>👤 Employees</h2><p>Manage your employees here.</p></div>;
@@ -33,14 +34,14 @@ const EmployeeDashboard = () => {
 
         const renderContent = () => {
             switch(activeTab) {
-                case 'dashboard': return <DashboardView />;
+                case 'dashboard': return <EmployeeHomeView />;
                 case 'leave': return <EmployeeLeaveView/>;
                 case 'assistant': return <EmployeeAssistantView />;
                 // case 'employees': return <EmployeesView />;
                 // case 'resume': return <ResumeView />;
                 // case 'candidates': return <CandidatesView />;
                 
-                default: return <DashboardView />;
+                default: return <EmployeeHomeView />;
             }
         }
   return (

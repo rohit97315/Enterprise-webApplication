@@ -8,8 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { EmployeeLeaveView } from './EmployeeLeaveView';
 import EmployeeAssistantView from './EmployeeAssistantView';
 import EmployeeHomeView from './EmployeeHomeView';
-// import axios from 'axios';
-import api from '../services/auth.api';
+import axios from 'axios';
 
 // const DashboardView = () => <div><h2>🏠 Home Dashboard</h2><p>Welcome back!</p></div>;
 // const EmployeesView = () => <div><h2>👤 Employees</h2><p>Manage your employees here.</p></div>;
@@ -202,8 +201,8 @@ const EmployeeDashboard = () => {
         <button
           onClick={async () => {
          try {
-            //  await axios.get(`${import.meta.env.VITE_API_URL}/api/auth/logout`, { withCredentials: true });
-            await api.get('/api/auth/logout');
+             await axios.get(`${import.meta.env.VITE_API_URL}/api/auth/logout`, { withCredentials: true });
+            
          } catch (err) {
              console.error('Logout request failed:', err);
              // still proceed to clear local state and redirect even if the

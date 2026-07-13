@@ -23,7 +23,7 @@ export const useAuth = () => {
             role:selectRole
         });
 
-        const {token,user} = response.data
+        const {token,user} = response
 
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));

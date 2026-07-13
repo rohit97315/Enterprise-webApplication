@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+// import axios from 'axios';
+import api from '../services/auth.api';
 
 const EmployeeHomeView = ({ onNavigate }) => {
     const [leaves, setLeaves] = useState([]);
@@ -12,7 +13,8 @@ const EmployeeHomeView = ({ onNavigate }) => {
         setUsername(storedUser?.username || 'Employee');
         
 
-        axios.get(`${import.meta.env.VITE_API_URL}/api/leave/my-leaves`, { withCredentials: true })
+        // axios.get(`${import.meta.env.VITE_API_URL}/api/leave/my-leaves`, { withCredentials: true })
+        api.get('/api/leave/my-leaves')
             .then(res => {
                 setLeaves(res.data);
                 setLoading(false);

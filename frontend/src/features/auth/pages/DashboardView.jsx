@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+// import axios from 'axios';
+ import api from '../services/auth.api';
+
 import {
   LineChart,
   Line,
@@ -23,7 +25,8 @@ export default function DashboardView() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    axios.get(`${import.meta.env.VITE_API_URL}/api/leave/dashboard-stats`, { withCredentials: true })
+    // axios.get(`${import.meta.env.VITE_API_URL}/api/leave/dashboard-stats`, { withCredentials: true })
+      api.get('/api/leave/dashboard-stats')
       .then(res => {
         setStats(res.data);
         setLoading(false);

@@ -8,7 +8,8 @@ import ResumeView from './ResumeView';
 import CandidatesView from './CandidatesView';
 import LeaveManagementView from './LeaveManagementView';
 import HRAssistantView from './HRAssistantView';
-import axios from 'axios';
+// import axios from 'axios';
+import api from '../services/auth.api';
 
 // const DashboardView = () => <div><h2>🏠 Home Dashboard</h2><p>Welcome back!</p></div>;
 // const EmployeesView = () => <div><h2>👤 Employees</h2><p>Manage your employees here.</p></div>;
@@ -199,7 +200,8 @@ const AdminDashboard = () => {
         <button
           onClick={async () => {
          try {
-             await axios.get(`${import.meta.env.VITE_API_URL}/api/auth/logout`, { withCredentials: true });
+            //  await axios.get(`${import.meta.env.VITE_API_URL}/api/auth/logout`, { withCredentials: true });
+            await api.get('/api/auth/logout');
          } catch (err) {
              console.error('Logout request failed:', err);
              // still proceed to clear local state and redirect even if the

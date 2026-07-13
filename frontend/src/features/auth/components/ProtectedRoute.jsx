@@ -6,7 +6,12 @@ const ProtectedRoute = ({ allowedRoles }) => {
   const [status, setStatus] = useState('checking'); // 'checking' | 'authorized' | 'unauthorized' | 'forbidden'
 
   useEffect(() => {
-    axios.get(`${import.meta.env.VITE_API_URL}/api/auth/get-me`, { withCredentials: true })
+  //   axios.get(`${import.meta.env.VITE_API_URL}/api/auth/get-me`, { withCredentials: true })
+  const token = localStorage.getItem('token');
+    axios.get(`${import.meta.env.VITE_API_URL}/api/auth/get-me`, {
+        withCredentials: true,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
       .then((res) => {
         const serverRole = res.data?.user?.role;
 

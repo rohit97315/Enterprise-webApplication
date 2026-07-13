@@ -27,7 +27,7 @@ const Login = () => {
       const { token, user } = response.data;
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`; // <-- add this line
       
       if (user.role === 'Admin') navigate('/admin/dashboard',{ state: { user } });
       else if (user.role === 'HR_Manager') navigate('/hr/dashboard',{ state: { user } });

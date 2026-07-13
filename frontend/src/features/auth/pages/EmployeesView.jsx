@@ -41,7 +41,7 @@ export default function EmployeesView() {
 
   const fetchEmployees = () => {
     setLoading(true);
-    axios.get('http://localhost:3000/api/auth/employees', { withCredentials: true })
+    axios.get(`${import.meta.env.VITE_API_URL}/api/auth/employees`, { withCredentials: true })
       .then(res => {
         setEmployees(res.data);
         setLoading(false);

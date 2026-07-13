@@ -200,6 +200,10 @@ const AdminDashboard = () => {
           onClick={async () => {
          try {
              await axios.get(`${import.meta.env.VITE_API_URL}/api/auth/logout`, { withCredentials: true });
+localStorage.removeItem('token');
+localStorage.removeItem('user');
+delete axios.defaults.headers.common['Authorization'];
+
             
          } catch (err) {
              console.error('Logout request failed:', err);

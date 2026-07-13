@@ -1,57 +1,65 @@
 import jwt from "jsonwebtoken"
 import tokenBlacklistModel from "../models/blaklist.model.js"
 
-export async function authUser(req,res,next){
-    const token = req.cookies.token
+// export async function authUser(req,res,next){
+//     const token = req.cookies.token
 
     
-    if(!token){
-        return res.status(401).json({
-            message:"Token not provided"
-        })
-    }
-    const isTokenBlacklisted = await tokenBlacklistModel.findOne({token})
-
-    if(isTokenBlacklisted){
-        return res.status(401).json({
-            message:"Token is invalid"
-        })
-    }
-    try{
-        const decoded = jwt.verify(token,process.env.JWT_SECRET)
-
-        req.user = decoded
-
-        next()
-    }catch (err){
-        return res.status(401).json({
-            message:"invalid token"
-        })
-    }
-}
-// export async function authUser(req, res, next) {
-//     const bearer = req.headers.authorization?.startsWith("Bearer ")
-//         ? req.headers.authorization.split(" ")[1]
-//         : null;
-//     const token = bearer || req.cookies.token;
-
-//     if (!token) {
-//         return res.status(401).json({ message: "Token not provided" });
+//     if(!token){
+//         return res.status(401).json({
+//             message:"Token not provided"
+//         })
 //     }
+//     const isTokenBlacklisted = await tokenBlacklistModel.findOne({token})
 
-//     const isTokenBlacklisted = await tokenBlacklistModel.findOne({ token });
-//     if (isTokenBlacklisted) {
-//         return res.status(401).json({ message: "Token is invalid" });
+//     if(isTokenBlacklisted){
+//         return res.status(401).json({
+//             message:"Token is invalid"
+//         })
 //     }
+//     try{
+//         const decoded = jwt.verify(token,process.env.JWT_SECRET)
 
-//     try {
-//         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-//         req.user = decoded;
-//         next();
-//     } catch (err) {
-//         return res.status(401).json({ message: "invalid token" });
+//         req.user = decoded
+
+//         next()
+//     }catch (err){
+//         return res.status(401).json({
+//             message:"invalid token"
+//         })
 //     }
 // }
+export async function authUser(req, res, next) {
+    // Prefer the Authorization header; fall back to the cookie
+    const bearer = req.headers.authorization?.startsWith("Bearer ")
+        ? req.headers.authorization.split(" ")[1]
+        : null;
+
+    const token = bearer || req.cookies.token;
+
+    if (!token) {
+        return res.status(401).json({
+            message: "Token not provided"
+        });
+    }
+
+    const isTokenBlacklisted = await tokenBlacklistModel.findOne({ token });
+
+    if (isTokenBlacklisted) {
+        return res.status(401).json({
+            message: "Token is invalid"
+        });
+    }
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = decoded;
+        next();
+    } catch (err) {
+        return res.status(401).json({
+            message: "invalid token"
+        });
+    }
+}
 
 
 

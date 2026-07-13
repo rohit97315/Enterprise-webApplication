@@ -53,11 +53,11 @@ app = FastAPI(title="AI HR Assistant & Resume Screener Service")
     
 #     response = llm_rag.invoke(prompt)
 #     return response.content
-
+FRONTEND_URL=os.getenv("FRONTEND_URL")
 # Unified CORS Middleware Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[FRONTEND_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -207,8 +207,9 @@ def apply_leave_tool(employee_id: str, leave_type: str, start_date: str, end_dat
         return f"Invalid leave type. Must be one of: {', '.join(valid_types)}"
     
     try:
+        NODE_API_URL = os.getenv("NODE_API_URL")
         response = httpx.post(
-            "http://localhost:3000/api/leave/apply-internal",
+            f"{NODE_API_URL}/api/leave/apply-internal",
             json={
                 "employee_id": employee_id,
                 "leaveType": leave_type,
@@ -302,8 +303,9 @@ def check_leave_status_tool(employee_id: str) -> str:
     
     try:
         # 1. Hit the Node backend route (Make sure port matches where your Node server runs)
+        NODE_API_URL = os.getenv("NODE_API_URL")
         response = httpx.get(
-            f"http://localhost:3000/api/leave/all-internal",
+            f"{NODE_API_URL}/api/leave/all-internal",
             headers={"X-Internal-Key": os.getenv("INTERNAL_API_KEY")},
             timeout=10.0
         )
@@ -548,7 +550,8 @@ async def screen_resume(file: UploadFile = File(...), job_description: str = For
 mistral_client = Mistral(api_key=os.getenv("MISTRAL_API_KEY"))
 
 # httpx is already imported at the top of your main.py
-NODE = "http://localhost:3000/api/leave"
+NODE_API_URL = os.getenv("NODE_API_URL")
+NODE = f"{NODE_API_URL}/api/leave"
 
 
 # ── Tool functions ─────────────────────────────────────────────────────────
@@ -960,4 +963,5 @@ async def hr_agent_endpoint(request: HRAgentRequest):
 if __name__ == "__main__":
     import uvicorn
     # Changed host back to localhost standard or 0.0.0.0 depending on access needs
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)

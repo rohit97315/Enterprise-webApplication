@@ -13,7 +13,7 @@ const [showForm, setShowForm] = useState(false);
 console.log(loading ,error);
 
    const fetchLeaves = () => {
-     axios.get('http://localhost:3000/api/leave/my-leaves', { withCredentials: true })
+     axios.get(`${import.meta.env.VITE_API_URL}/api/leave/my-leaves`, { withCredentials: true })
        .then(response => { setRequests(response.data); setLoading(false); })
        .catch(err => {
          console.error("Error loading users with Axios:", err);

@@ -8,7 +8,7 @@ const handleHRAgentChat = async (req, res) => {
             return res.status(400).json({ error: "Message is required" });
 
         const pythonResponse = await axios.post(
-            "http://127.0.0.1:8000/api/hr-agent",
+            `${process.env.FASTAPI_URL}/api/hr-agent`,
             { message, hr_id: req.user.id }
         );
 

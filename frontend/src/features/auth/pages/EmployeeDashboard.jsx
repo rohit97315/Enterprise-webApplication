@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { EmployeeLeaveView } from './EmployeeLeaveView';
 import EmployeeAssistantView from './EmployeeAssistantView';
 import EmployeeHomeView from './EmployeeHomeView';
+import axios from 'axios';
 
 // const DashboardView = () => <div><h2>🏠 Home Dashboard</h2><p>Welcome back!</p></div>;
 // const EmployeesView = () => <div><h2>👤 Employees</h2><p>Manage your employees here.</p></div>;
@@ -33,14 +34,14 @@ const EmployeeDashboard = () => {
 
         const renderContent = () => {
             switch(activeTab) {
-                case 'dashboard': return <EmployeeHomeView />;
+                case 'dashboard': return <EmployeeHomeView onNavigate={setActiveTab} />;
                 case 'leave': return <EmployeeLeaveView/>;
                 case 'assistant': return <EmployeeAssistantView />;
                 // case 'employees': return <EmployeesView />;
                 // case 'resume': return <ResumeView />;
                 // case 'candidates': return <CandidatesView />;
                 
-                default: return <EmployeeHomeView />;
+                default: return <EmployeeHomeView onNavigate={setActiveTab} />;
             }
         }
   return (
@@ -198,12 +199,20 @@ const EmployeeDashboard = () => {
 
       <div className="flex flex-col space-y-2">
         <button
-          onClick={() => {
-            localStorage.clear(); 
-            sessionStorage.clear();
-            setShowLogoutPopup(false);
-            navigate('/');
-          }}
+          onClick={async () => {
+         try {
+             await axios.get(`${import.meta.env.VITE_API_URL}/api/auth/logout`, { withCredentials: true });
+         } catch (err) {
+             console.error('Logout request failed:', err);
+             // still proceed to clear local state and redirect even if the
+             // network call fails, so the user isn't stuck
+         } finally {
+             localStorage.clear();
+             sessionStorage.clear();
+             setShowLogoutPopup(false);
+             navigate('/login');
+         }
+     }}
           className="w-full bg-red-600 hover:bg-red-500 text-white py-2 rounded-lg text-sm font-medium transition-colors"
         >
           Log Out

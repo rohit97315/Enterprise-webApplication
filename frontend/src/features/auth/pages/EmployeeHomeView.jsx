@@ -12,7 +12,7 @@ const EmployeeHomeView = ({ onNavigate }) => {
         setUsername(storedUser?.username || 'Employee');
         
 
-        axios.get('http://localhost:3000/api/leave/my-leaves', { withCredentials: true })
+        axios.get(`${import.meta.env.VITE_API_URL}/api/leave/my-leaves`, { withCredentials: true })
             .then(res => {
                 setLeaves(res.data);
                 setLoading(false);

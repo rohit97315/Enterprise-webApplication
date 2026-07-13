@@ -97,8 +97,10 @@ async function loginUserController(req,res){
     res.cookie("token", token, {
     httpOnly: true,
     // secure: false,      // localhost
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    // secure: process.env.NODE_ENV === "production",
+    // sameSite: "lax",
+    secure: true,
+    sameSite: "none",
     maxAge: 24 * 60 * 60 * 1000
 });
     res.status(200).json({
@@ -170,7 +172,7 @@ const handleChat = async (req, res) => {
         // });
 
 
-        const pythonResponse = await axios.post('http://127.0.0.1:8000/api/chat', {
+        const pythonResponse = await axios.post(`${process.env.FASTAPI_URL}/api/chat`, {
             message: message,
             employee_id: employee_id || ""
         });
@@ -206,7 +208,7 @@ const processCandidateResume = async (req, res) => {
 
         // 2. Forward payload to Python FastAPI microservice
         // Essential: Standard Node 'form-data' package needs its headers attached explicitly
-        const aiResponse = await axios.post('http://127.0.0.1:8000/api/screen', formData, {
+        const aiResponse = await axios.post(`${process.env.FASTAPI_URL}/api/screen`, formData, {
             headers: {
                 ...formData.getHeaders() // Injects content-type multi-part boundary flags safely
             }

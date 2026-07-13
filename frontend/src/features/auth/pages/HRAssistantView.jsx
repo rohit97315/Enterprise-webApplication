@@ -18,7 +18,7 @@ const HRAssistantView = () => {
         try {
             // const res = await axios.post('http://localhost:3000/api/auth/chat', { message });
             const res = await axios.post(
-    'http://localhost:3000/api/hr-agent/chat',
+    `${import.meta.env.VITE_API_URL}/api/hr-agent/chat`,
     { message },
     { withCredentials: true }
 );

@@ -156,7 +156,7 @@ export default function EmployeeLeaveManagementView({onClose, onSuccess}) {
     setSubmitError('');
     try {
       await axios.post(
-        'http://localhost:3000/api/leave/apply',
+        `${import.meta.env.VITE_API_URL}/api/leave/apply`,
         {
           leaveType,
           reason,

@@ -69,7 +69,7 @@ export default function LeaveManagementView() {
         
       
         // 2. Use axios.get instead of fetch
-        axios.get('http://localhost:3000/api/leave/all',{
+        axios.get(`${import.meta.env.VITE_API_URL}/api/leave/all`,{
             withCredentials:true
             })
             .then(response => {
@@ -97,7 +97,7 @@ export default function LeaveManagementView() {
             
             
             // Making the API call to the backend
-            const response = await axios.patch(`http://localhost:3000/api/leave/${userid}/status`, 
+            const response = await axios.patch(`${import.meta.env.VITE_API_URL}/api/leave/${userid}/status`, 
                 {
                 status: nextStatus
             },

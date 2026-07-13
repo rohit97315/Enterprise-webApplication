@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:3000/api/auth'; // Express Server Port
+const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api/auth`; // Express Server Port
 
 export const screenNewCandidate = createAsyncThunk(
     'screener/screenNewCandidate',

@@ -9,6 +9,7 @@ import ResumeView from './ResumeView';
 import CandidatesView from './CandidatesView';
 import LeaveManagementView from './LeaveManagementView';
 import HRAssistantView from './HRAssistantView';
+import axios from 'axios';
 
 // const DashboardView = () => <div><h2>🏠 Home Dashboard</h2><p>Welcome back!</p></div>;
 // const EmployeesView = () => <div><h2>👤 Employees</h2><p>Manage your employees here.</p></div>;
@@ -200,12 +201,20 @@ export default function HRDashboard() {
 
       <div className="flex flex-col space-y-2">
         <button
-          onClick={() => {
-            localStorage.clear(); 
-            sessionStorage.clear(); 
-            setShowLogoutPopup(false);
-            navigate('/');
-          }}
+          onClick={async () => {
+         try {
+             await axios.get(`${import.meta.env.VITE_API_URL}/api/auth/logout`, { withCredentials: true });
+         } catch (err) {
+             console.error('Logout request failed:', err);
+             // still proceed to clear local state and redirect even if the
+             // network call fails, so the user isn't stuck
+         } finally {
+             localStorage.clear();
+             sessionStorage.clear();
+             setShowLogoutPopup(false);
+             navigate('/login');
+         }
+     }}
           className="w-full bg-red-600 hover:bg-red-500 text-white py-2 rounded-lg text-sm font-medium transition-colors"
         >
           Log Out

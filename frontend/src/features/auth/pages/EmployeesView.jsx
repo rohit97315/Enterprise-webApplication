@@ -63,7 +63,7 @@ export default function EmployeesView() {
     setIsSubmitting(true);
     setSubmitError('');
     try {
-      await axios.post('http://localhost:3000/api/auth/register', formData, { withCredentials: true });
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/register`, formData, { withCredentials: true });
       setIsModalOpen(false);
       setFormData({ username: '', email: '', password: '', role: 'Employee' });
       fetchEmployees(); // refresh so the new employee shows up immediately

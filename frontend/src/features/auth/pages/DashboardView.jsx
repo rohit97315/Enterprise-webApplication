@@ -23,7 +23,7 @@ export default function DashboardView() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    axios.get('http://localhost:3000/api/leave/dashboard-stats', { withCredentials: true })
+    axios.get(`${import.meta.env.VITE_API_URL}/api/leave/dashboard-stats`, { withCredentials: true })
       .then(res => {
         setStats(res.data);
         setLoading(false);

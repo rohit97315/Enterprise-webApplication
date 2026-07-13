@@ -99,8 +99,10 @@ async function loginUserController(req,res){
     // secure: false,      // localhost
     // secure: process.env.NODE_ENV === "production",
     // sameSite: "lax",
-    secure: true,
-    sameSite: "none",
+    // secure: true,
+    // sameSite: "none",
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     maxAge: 24 * 60 * 60 * 1000
 });
     res.status(200).json({

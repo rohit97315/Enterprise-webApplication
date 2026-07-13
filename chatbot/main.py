@@ -11,7 +11,8 @@ from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
 from langchain_community.document_loaders import PyPDFLoader
 # from langchain_community.vectorstores import Chroma
 from langchain_chroma import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
+# from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_mistralai import MistralAIEmbeddings
 from langchain_mistralai import ChatMistralAI
 import pydantic_core
 import httpx
@@ -68,8 +69,8 @@ app.add_middleware(
 # ==========================================
 
 print("Initializing Embeddings and Vector Store for RAG...")
-embedding = HuggingFaceEmbeddings(model="all-MiniLM-L6-v2")
-
+# embedding = HuggingFaceEmbeddings(model="all-MiniLM-L6-v2")
+embedding = MistralAIEmbeddings(model="mistral-embed", api_key=os.getenv("MISTRAL_API_KEY"))
 vectorstore = Chroma(
     persist_directory="chroma_db",
     embedding_function=embedding

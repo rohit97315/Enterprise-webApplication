@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchCandidates } from '../screenerSlice';
+import { fetchCandidates,deleteCandidate } from '../screenerSlice';
 
 const CandidatesView = () => {
     const dispatch = useDispatch();
@@ -10,6 +10,15 @@ const CandidatesView = () => {
     useEffect(() => {
         dispatch(fetchCandidates());
     }, [dispatch]);
+
+
+    const handleRemove = (id, name) => {
+         const confirmed = window.confirm(`Remove ${name} from the candidate pipeline? This can't be undone.`);
+         if (confirmed) {
+             dispatch(deleteCandidate(id));
+         }
+     };
+
 
     // Helper utility tailored for dark-theme contrast scores
     const getScoreColor = (score) => {
@@ -90,6 +99,12 @@ const CandidatesView = () => {
                                     <div className={`text-xs font-black px-4 py-2 border rounded-full text-center tracking-wider shrink-0 ${getScoreColor(candidate.score)}`}>
                                         MATCH INDEX: {candidate.score}%
                                     </div>
+                                    <button
+                                 onClick={() => handleRemove(candidate._id, candidate.name)}
+                                 className="text-xs font-semibold px-3 py-2 rounded-lg border border-zinc-800 text-zinc-400 hover:text-rose-400 hover:border-rose-900/60 hover:bg-rose-950/20 transition-colors shrink-0"
+                             >
+                                 Remove
+                             </button>
                                 </div>
 
                                 {/* Abstract Summary Analysis */}

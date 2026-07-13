@@ -46,6 +46,7 @@ authRouter.post("/chat", authController.handleChat)
 authRouter.post('/process', authUser, authorizeRoles("HR_Manager", "Admin"),upload.single('resume'), authController.processCandidateResume);
 // authRouter.get('/candidates', authController.getAllCandidates);
 authRouter.get('/candidates',authUser, authorizeRoles("HR_Manager", "Admin"), authController.getAllCandidates);
-
+authRouter.delete('/candidates/:id', authUser, authorizeRoles("HR_Manager", "Admin"), authController.deleteCandidateController);
+authRouter.get('/employees', authUser, authorizeRoles("HR_Manager", "Admin"), authController.getAllEmployeesController);
 
 export default authRouter

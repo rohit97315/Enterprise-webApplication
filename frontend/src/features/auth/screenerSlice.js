@@ -30,6 +30,20 @@ export const fetchCandidates = createAsyncThunk(
     }
 );
 
+
+export const deleteCandidate = createAsyncThunk(
+     'screener/deleteCandidate',
+     async (id, { rejectWithValue }) => {
+         try {
+             await axios.delete(`${API_BASE_URL}/candidates/${id}`, { withCredentials: true });
+             return id;
+         } catch (error) {
+             return rejectWithValue(error.response?.data?.error || 'Failed to remove candidate');
+         }
+     }
+ );
+
+
 const screenerSlice = createSlice({
     name: 'screener',
     initialState: {
@@ -66,7 +80,17 @@ const screenerSlice = createSlice({
             .addCase(fetchCandidates.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
+            })
+            builder
+            .addCase(deleteCandidate.fulfilled, (state, action) => {
+                state.candidates = state.candidates.filter(c => c._id !== action.payload);
+            })
+            .addCase(deleteCandidate.rejected, (state, action) => {
+                state.error = action.payload;
             });
+            
+            
+            
     }
 });
 

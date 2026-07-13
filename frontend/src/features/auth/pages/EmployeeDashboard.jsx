@@ -3,7 +3,6 @@ import {ChevronUp} from 'lucide-react';
 // import './index.css';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import DashboardView from './DashboardView';
 // import EmployeeLeaveManagementView from './EmployeeLeaveManagementView';
 // import HRAssistantView from './HRAssistantView';
 import { EmployeeLeaveView } from './EmployeeLeaveView';

@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken'
 import axios from 'axios'
 import FormData from 'form-data';
 import candidateModel from "../models/candidate.model.js";
+import leaveModel from "../models/leave.model.js";
 
 
 
@@ -253,5 +254,57 @@ const getAllCandidates = async (req, res) => {
     }
 };
 
+const getAllEmployeesController = async (req, res) => {
+    try {
+        const employees = await userModel
+            .find()
+            .select("username email role employeeId createdAt")
+            .sort({ createdAt: -1 });
 
-export default {loginUserController ,logoutUserController,getMeController,registerUserController,handleChat,processCandidateResume,getAllCandidates}
+        const now = new Date();
+        const onLeaveNow = await leaveModel
+            .find({ status: "Approved", startDate: { $lte: now }, endDate: { $gte: now } })
+            .select("username");
+
+        const onLeaveUsernames = new Set(onLeaveNow.map(l => l.username));
+
+        const result = employees.map(emp => ({
+            _id: emp._id,
+            employeeId: emp.employeeId,
+            username: emp.username,
+            email: emp.email,
+            role: emp.role,
+            joinedAt: emp.createdAt,
+            status: onLeaveUsernames.has(emp.username) ? "On Leave" : "Active"
+        }));
+
+        res.status(200).json(result);
+    } catch (err) {
+        console.error("getAllEmployees error:", err.message);
+        res.status(500).json({ message: "Failed to fetch employees" });
+    }
+};
+
+
+
+const deleteCandidateController = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const deleted = await candidateModel.findByIdAndDelete(id);
+
+        if (!deleted) {
+            return res.status(404).json({ error: 'Candidate not found.' });
+        }
+
+        return res.status(200).json({ message: 'Candidate removed successfully.', id });
+    } catch (error) {
+        console.error('❌ Candidate Delete Error:', error.message);
+        return res.status(500).json({ error: 'Failed to remove candidate.' });
+    }
+};
+
+
+
+
+export default {loginUserController ,logoutUserController,getMeController,registerUserController,handleChat,processCandidateResume,getAllCandidates,getAllEmployeesController,deleteCandidateController}
